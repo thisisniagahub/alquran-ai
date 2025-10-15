@@ -1,0 +1,14 @@
+node_modules
+.git
+.expo
+.metro-cache
+__pycache__
+*.pyc
+.env
+.env.local
+frontend/node_modules
+backend/__pycache__
+tests
+*.md
+*.log
+.DS_Store

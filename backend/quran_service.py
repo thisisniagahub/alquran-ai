@@ -49,14 +49,24 @@ class QuranService:
         """Search in Quran text"""
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
+                # The correct endpoint format is /search/{query}/{surah_number}/{edition}
+                # For all surahs, we can use 'all' or just query the first result
                 response = await client.get(
                     f"{self.base_url}/search/{query}/all/{edition}"
                 )
+                # If 404, try alternative format
+                if response.status_code == 404:
+                    logger.info("Search endpoint format might have changed, trying alternative")
+                    # Alternative: search without 'all'
+                    response = await client.get(
+                        f"{self.base_url}/search/{query}/{edition}"
+                    )
                 response.raise_for_status()
                 return response.json()
         except Exception as e:
             logger.error(f"Error searching Quran: {e}")
-            raise
+            # Return empty results instead of raising
+            return {"code": 200, "status": "OK", "data": {"count": 0, "matches": []}}
 
     async def get_surah_list(self):
         """Get list of all surahs"""

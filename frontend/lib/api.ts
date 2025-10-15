@@ -37,6 +37,7 @@ export const quranAPI = {
   search: (query: string, edition: string = 'quran-simple') =>
     api.get('/quran/search', { params: { q: query, edition } }),
   getEditions: () => api.get('/quran/editions'),
+  getDailyVerse: () => api.get('/quran/daily-verse'),
 };
 
 export const aiAPI = {

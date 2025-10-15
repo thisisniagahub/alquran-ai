@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { bookmarkAPI } from '../../lib/api';
 
 export default function BookmarksScreen() {
+  const router = useRouter();
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -66,13 +68,23 @@ export default function BookmarksScreen() {
           data={bookmarks}
           keyExtractor={(item: any) => item._id}
           renderItem={({ item }: any) => (
-            <View style={styles.bookmarkCard}>
+            <TouchableOpacity 
+              style={styles.bookmarkCard}
+              onPress={() => router.push({
+                pathname: '/(tabs)/read',
+                params: { surah: item.surah_number }
+              })}
+            >
               <View style={styles.bookmarkHeader}>
-                <Text style={styles.bookmarkSurah}>
-                  Surah {item.surah_number}:{item.ayat_number}
-                </Text>
+                <View style={styles.bookmarkLeft}>
+                  <MaterialCommunityIcons name="bookmark" size={20} color="#10b981" />
+                  <Text style={styles.bookmarkSurah}>
+                    Surah {item.surah_number}:{item.ayat_number}
+                  </Text>
+                </View>
                 <TouchableOpacity
-                  onPress={() => {
+                  onPress={(e) => {
+                    e.stopPropagation();
                     Alert.alert(
                       'Delete Bookmark',
                       'Are you sure you want to delete this bookmark?',
@@ -89,7 +101,7 @@ export default function BookmarksScreen() {
               {item.note && (
                 <Text style={styles.bookmarkNote}>{item.note}</Text>
               )}
-            </View>
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.list}
         />
@@ -138,10 +150,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  bookmarkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   bookmarkSurah: {
     fontSize: 16,
     fontWeight: '600',
     color: '#10b981',
+    marginLeft: 8,
   },
   bookmarkNote: {
     fontSize: 14,

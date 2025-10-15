@@ -20,11 +20,13 @@ const { width } = Dimensions.get('window');
 export default function HomeScreen() {
   const [surahs, setSurahs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dailyVerse, setDailyVerse] = useState<any>(null);
   const { user } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
     loadSurahs();
+    loadDailyVerse();
   }, []);
 
   const loadSurahs = async () => {
@@ -35,6 +37,17 @@ export default function HomeScreen() {
       console.error('Error loading surahs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDailyVerse = async () => {
+    try {
+      const response = await quranAPI.getDailyVerse();
+      if (response.data.success) {
+        setDailyVerse(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading daily verse:', error);
     }
   };
 
@@ -53,14 +66,20 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>{getGreeting()}</Text>
           <Text style={styles.userName}>{user?.email?.split('@')[0] || 'Guest'}</Text>
         </View>
-        <TouchableOpacity style={styles.aiButton}>
+        <TouchableOpacity style={styles.aiButton} onPress={() => router.push('/ai-chat')}>
           <MaterialCommunityIcons name="robot" size={28} color="#10b981" />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Daily Verse Card */}
-        <View style={styles.dailyCard}>
+        <TouchableOpacity 
+          style={styles.dailyCard}
+          onPress={() => dailyVerse && router.push({
+            pathname: '/(tabs)/read',
+            params: { surah: dailyVerse.surah_number }
+          })}
+        >
           <LinearGradient
             colors={['#10b981', '#059669']}
             style={styles.gradientCard}
@@ -69,10 +88,20 @@ export default function HomeScreen() {
           >
             <MaterialCommunityIcons name="star-crescent" size={32} color="#fff" />
             <Text style={styles.dailyTitle}>Daily Verse</Text>
-            <Text style={styles.dailyVerse}>And He is with you wherever you are</Text>
-            <Text style={styles.dailyReference}>Surah Al-Hadid (57:4)</Text>
+            {dailyVerse ? (
+              <>
+                <Text style={styles.dailyVerse} numberOfLines={2}>
+                  {dailyVerse.translation}
+                </Text>
+                <Text style={styles.dailyReference}>
+                  Surah {dailyVerse.surah_name} ({dailyVerse.surah_number}:{dailyVerse.ayah_number})
+                </Text>
+              </>
+            ) : (
+              <ActivityIndicator size="small" color="#fff" style={{ marginTop: 12 }} />
+            )}
           </LinearGradient>
-        </View>
+        </TouchableOpacity>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -90,14 +119,14 @@ export default function HomeScreen() {
             <Text style={styles.actionText}>Listen</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/prayer-times')}>
             <View style={[styles.iconCircle, { backgroundColor: '#fef3c7' }]}>
               <MaterialCommunityIcons name="clock-outline" size={24} color="#f59e0b" />
             </View>
             <Text style={styles.actionText}>Prayer Times</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/qibla')}>
             <View style={[styles.iconCircle, { backgroundColor: '#e0e7ff' }]}>
               <MaterialCommunityIcons name="compass" size={24} color="#6366f1" />
             </View>
@@ -142,7 +171,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Floating AI Assistant Button */}
-      <TouchableOpacity style={styles.fabButton}>
+      <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/ai-chat')}>
         <MaterialCommunityIcons name="robot" size={28} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>

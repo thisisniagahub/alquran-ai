@@ -36,25 +36,25 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
           
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/language')}>
             <MaterialCommunityIcons name="translate" size={24} color="#6b7280" />
             <Text style={styles.settingText}>Language</Text>
             <MaterialCommunityIcons name="chevron-right" size={24} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/reciter')}>
             <MaterialCommunityIcons name="speaker" size={24} color="#6b7280" />
             <Text style={styles.settingText}>Reciter</Text>
             <MaterialCommunityIcons name="chevron-right" size={24} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/text-size')}>
             <MaterialCommunityIcons name="format-size" size={24} color="#6b7280" />
             <Text style={styles.settingText}>Text Size</Text>
             <MaterialCommunityIcons name="chevron-right" size={24} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/theme')}>
             <MaterialCommunityIcons name="theme-light-dark" size={24} color="#6b7280" />
             <Text style={styles.settingText}>Theme</Text>
             <MaterialCommunityIcons name="chevron-right" size={24} color="#9ca3af" />
@@ -64,7 +64,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Learning</Text>
           
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/progress')}>
             <MaterialCommunityIcons name="chart-line" size={24} color="#6b7280" />
             <Text style={styles.settingText}>Reading Progress</Text>
             <MaterialCommunityIcons name="chevron-right" size={24} color="#9ca3af" />

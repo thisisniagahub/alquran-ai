@@ -214,6 +214,51 @@ async def get_editions():
     """Get available Quran editions"""
     return quran_service.get_available_editions()
 
+@app.get("/api/quran/daily-verse")
+async def get_daily_verse():
+    """Get daily verse - changes each day"""
+    try:
+        import random
+        from datetime import datetime
+        
+        # Use date as seed for consistent daily verse
+        today = datetime.now().strftime('%Y%m%d')
+        random.seed(today)
+        
+        # Select a random surah and ayah
+        surah_number = random.randint(1, 114)
+        
+        # Get surah info to know number of ayahs
+        surah_response = await quran_service.get_surah_list()
+        surahs = surah_response.get("data", [])
+        
+        if surahs:
+            selected_surah = next((s for s in surahs if s.get("number") == surah_number), None)
+            if selected_surah:
+                num_ayahs = selected_surah.get("numberOfAyahs", 1)
+                ayah_number = random.randint(1, num_ayahs)
+                
+                # Fetch the verse
+                arabic = await quran_service.get_ayah(surah_number, ayah_number, "quran-uthmani")
+                translation = await quran_service.get_ayah(surah_number, ayah_number, "en.sahih")
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "surah_number": surah_number,
+                        "ayah_number": ayah_number,
+                        "surah_name": selected_surah.get("englishName"),
+                        "surah_name_arabic": selected_surah.get("name"),
+                        "arabic_text": arabic.get("data", {}).get("text", ""),
+                        "translation": translation.get("data", {}).get("text", ""),
+                    }
+                }
+        
+        raise HTTPException(status_code=500, detail="Could not fetch daily verse")
+    except Exception as e:
+        logger.error(f"Error fetching daily verse: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============= AI ASSISTANT ENDPOINTS =============
 @app.post("/api/ai/chat")
 async def chat_with_ai(message: ChatMessage, token: str = Depends(JWTBearer())):
@@ -388,19 +433,81 @@ async def delete_bookmark(bookmark_id: str, token: str = Depends(JWTBearer())):
 async def update_progress(progress_data: dict, token: str = Depends(JWTBearer())):
     """Update reading progress"""
     try:
+        from datetime import datetime, timedelta
+        
         user_data = get_user_from_token(token)
         user_id = user_data.get("sub")
         
         db = get_database()
         
-        # Update user's last read position
+        # Get current profile to check streak
+        profile = await db.user_profiles.find_one({"user_id": user_id})
+        
+        if not profile:
+            # Create default profile if doesn't exist
+            profile = {
+                "user_id": user_id,
+                "email": user_data.get("email", ""),
+                "streak_data": {
+                    "current_streak": 0,
+                    "longest_streak": 0,
+                    "last_read_date": None
+                }
+            }
+            await db.user_profiles.insert_one(profile)
+        
+        # Update streak
+        streak_data = profile.get("streak_data", {
+            "current_streak": 0,
+            "longest_streak": 0,
+            "last_read_date": None
+        })
+        
+        today = datetime.now().date()
+        last_read_date = streak_data.get("last_read_date")
+        
+        if last_read_date:
+            if isinstance(last_read_date, str):
+                last_read_date = datetime.fromisoformat(last_read_date).date()
+            elif isinstance(last_read_date, datetime):
+                last_read_date = last_read_date.date()
+        
+        current_streak = streak_data.get("current_streak", 0)
+        longest_streak = streak_data.get("longest_streak", 0)
+        
+        if last_read_date:
+            days_diff = (today - last_read_date).days
+            
+            if days_diff == 0:
+                # Same day, keep streak
+                pass
+            elif days_diff == 1:
+                # Consecutive day, increment streak
+                current_streak += 1
+            else:
+                # Streak broken, reset
+                current_streak = 1
+        else:
+            # First time reading
+            current_streak = 1
+        
+        # Update longest streak if current is higher
+        if current_streak > longest_streak:
+            longest_streak = current_streak
+        
+        # Update user's last read position and streak
         await db.user_profiles.update_one(
             {"user_id": user_id},
             {
                 "$set": {
                     "reading_progress.last_surah": progress_data.get("surah_number"),
                     "reading_progress.last_ayat": progress_data.get("ayat_number"),
-                    "reading_progress.last_updated": progress_data.get("timestamp")
+                    "reading_progress.last_updated": progress_data.get("timestamp"),
+                    "streak_data": {
+                        "current_streak": current_streak,
+                        "longest_streak": longest_streak,
+                        "last_read_date": today.isoformat()
+                    }
                 }
             }
         )
@@ -410,12 +517,20 @@ async def update_progress(progress_data: dict, token: str = Depends(JWTBearer())
             "user_id": user_id,
             "surah_number": progress_data.get("surah_number"),
             "ayat_number": progress_data.get("ayat_number"),
-            "time_spent": progress_data.get("time_spent", 0)
+            "time_spent": progress_data.get("time_spent", 0),
+            "date": datetime.now()
         }
         
         await db.reading_progress.insert_one(progress_entry)
         
-        return {"success": True, "message": "Progress updated"}
+        return {
+            "success": True, 
+            "message": "Progress updated",
+            "streak": {
+                "current_streak": current_streak,
+                "longest_streak": longest_streak
+            }
+        }
         
     except Exception as e:
         logger.error(f"Error updating progress: {e}")

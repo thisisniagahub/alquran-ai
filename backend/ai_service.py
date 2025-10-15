@@ -7,7 +7,8 @@ logger = logging.getLogger(__name__)
 class AIService:
     def __init__(self):
         self.client = ZhipuAI(api_key=settings.glm_api_key)
-        self.model = "glm-4"
+        # Using glm-4-plus - tested and working with current API key
+        self.model = "glm-4-plus"
         
         # AI Ustaz/Ustazah persona system prompt
         self.system_prompt = """You are a knowledgeable and patient Islamic teacher (Ustaz/Ustazah) helping Muslims learn and understand the Quran. You follow Malaysian Islamic guidelines (JAKIM/JAIS).

@@ -6,24 +6,38 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { quranAPI } from '../../lib/api';
-import { useLocalSearchParams } from 'expo-router';
+import { quranAPI, bookmarkAPI, progressAPI, aiAPI } from '../../lib/api';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuranStore } from '../../store/quranStore';
 
 export default function ReadScreen() {
   const params = useLocalSearchParams();
+  const router = useRouter();
   const [surahData, setSurahData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [bookmarkedAyahs, setBookmarkedAyahs] = useState<Set<number>>(new Set());
+  const [loadingBookmark, setLoadingBookmark] = useState<number | null>(null);
   const { currentSurah, setCurrentSurah, fontSize } = useQuranStore();
   
   const surahNumber = params.surah ? Number(params.surah) : currentSurah;
 
   useEffect(() => {
     loadSurah(surahNumber);
+    loadBookmarks();
   }, [surahNumber]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (surahData) {
+        saveProgress(surahNumber, 1);
+      }
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [surahNumber, surahData]);
 
   const loadSurah = async (number: number) => {
     try {
@@ -36,6 +50,66 @@ export default function ReadScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadBookmarks = async () => {
+    try {
+      const response = await bookmarkAPI.getBookmarks();
+      const bookmarks = response.data.bookmarks || [];
+      const ayahNumbers = new Set(
+        bookmarks
+          .filter((b: any) => b.surah_number === surahNumber)
+          .map((b: any) => b.ayat_number)
+      );
+      setBookmarkedAyahs(ayahNumbers);
+    } catch (error) {
+      console.error('Error loading bookmarks:', error);
+    }
+  };
+
+  const saveProgress = async (surah: number, ayat: number) => {
+    try {
+      await progressAPI.updateProgress(surah, ayat, 30);
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  };
+
+  const toggleBookmark = async (ayahNumber: number) => {
+    const isBookmarked = bookmarkedAyahs.has(ayahNumber);
+    setLoadingBookmark(ayahNumber);
+
+    try {
+      if (isBookmarked) {
+        const response = await bookmarkAPI.getBookmarks();
+        const bookmark = response.data.bookmarks.find(
+          (b: any) => b.surah_number === surahNumber && b.ayat_number === ayahNumber
+        );
+        if (bookmark) {
+          await bookmarkAPI.deleteBookmark(bookmark._id);
+          setBookmarkedAyahs(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(ayahNumber);
+            return newSet;
+          });
+        }
+      } else {
+        await bookmarkAPI.createBookmark(surahNumber, ayahNumber);
+        setBookmarkedAyahs(prev => new Set(prev).add(ayahNumber));
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update bookmark');
+      console.error('Bookmark error:', error);
+    } finally {
+      setLoadingBookmark(null);
+    }
+  };
+
+  const explainVerse = (ayahNumber: number) => {
+    router.push({
+      pathname: '/ai-chat',
+      params: { surah: surahNumber, ayat: ayahNumber }
+    });
   };
 
   if (loading) {
@@ -80,13 +154,24 @@ export default function ReadScreen() {
                 <View style={styles.verseNumberBadge}>
                   <Text style={styles.verseNumber}>{ayah.numberInSurah}</Text>
                 </View>
-                <TouchableOpacity style={styles.iconButton}>
-                  <MaterialCommunityIcons name="bookmark-outline" size={20} color="#6b7280" />
+                <TouchableOpacity 
+                  style={styles.iconButton}
+                  onPress={() => toggleBookmark(ayah.numberInSurah)}
+                  disabled={loadingBookmark === ayah.numberInSurah}
+                >
+                  <MaterialCommunityIcons 
+                    name={bookmarkedAyahs.has(ayah.numberInSurah) ? "bookmark" : "bookmark-outline"} 
+                    size={20} 
+                    color={bookmarkedAyahs.has(ayah.numberInSurah) ? "#10b981" : "#6b7280"}
+                  />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.iconButton}>
                   <MaterialCommunityIcons name="play-circle-outline" size={20} color="#6b7280" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.iconButton}>
+                <TouchableOpacity 
+                  style={styles.iconButton}
+                  onPress={() => explainVerse(ayah.numberInSurah)}
+                >
                   <MaterialCommunityIcons name="robot-outline" size={20} color="#10b981" />
                 </TouchableOpacity>
               </View>
